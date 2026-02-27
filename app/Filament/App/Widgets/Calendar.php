@@ -10,6 +10,7 @@ use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
@@ -70,11 +71,40 @@ class Calendar extends CalendarWidget
             Checkbox::make('AllDay')
                 ->label('All Day')
                 ->default(true),
+            Select::make('Color')
+                ->label('Event Color')
+                ->default('#2563eb')
+                ->options([
+                    '#2563eb' => '🔵  Blue',
+                    '#16a34a' => '🟢  Green',
+                    '#dc2626' => '🔴  Red',
+                    '#9333ea' => '🟣  Purple',
+                    '#d97706' => '🟠  Amber',
+                ])
+                ->native(false),
+            Checkbox::make('NotAvailable')
+                ->label('Not Available')
+                ->helperText('Mark this day as unavailable for appointments.')
+                ->default(false),
         ]);
     }
 
     protected function onDateClick(DateClickInfo $info): void
     {
+        $clickedDate = $info->date?->toDateString();
+
+        $notAvailable = CalendarAppointment::query()
+            ->where('ClinicId', Filament::getTenant()?->Id)
+            ->where('NotAvailable', true)
+            ->whereDate('StartDate', $clickedDate)
+            ->exists();
+
+        if ($notAvailable) {
+            $this->mountAction('notAvailableWarning');
+
+            return;
+        }
+
         $this->mountAction('createCalendarAppointment');
     }
 
@@ -115,7 +145,7 @@ class Calendar extends CalendarWidget
     public function viewAction(): ViewAction
     {
         return parent::viewAction()
-            ->visible(fn (): bool => !($this->getEventRecord() instanceof PatientHistory));
+            ->visible(fn (): bool => ! ($this->getEventRecord() instanceof PatientHistory));
     }
 
     public function deleteAction(): DeleteAction
@@ -152,6 +182,18 @@ class Calendar extends CalendarWidget
             });
     }
 
+    public function notAvailableWarningAction(): Action
+    {
+        return Action::make('notAvailableWarning')
+            ->label('Not Available')
+            ->icon('heroicon-o-exclamation-triangle')
+            ->color('danger')
+            ->modalHeading('Doctor Not Available')
+            ->modalDescription('This day is marked as unavailable. Appointments cannot be scheduled on this date.')
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Close');
+    }
+
     public function visitPatientAction(): Action
     {
         return Action::make('visitPatient')
@@ -176,6 +218,13 @@ class Calendar extends CalendarWidget
             $this->viewAction(),
             $this->viewPatientHistoryAction(),
             $this->deleteAction(),
+        ];
+    }
+
+    protected function getActions(): array
+    {
+        return [
+            $this->notAvailableWarningAction(),
         ];
     }
 

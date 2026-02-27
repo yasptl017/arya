@@ -22,11 +22,21 @@ class CalendarAppointment extends Model implements Eventable
 
     public function toCalendarEvent(): CalendarEvent
     {
+        $backgroundColor = $this->NotAvailable
+            ? '#6b7280'
+            : ($this->Color ?? '#3b82f6');
+
+        $title = $this->NotAvailable
+            ? '🚫 '.$this->Title
+            : $this->Title;
+
         return CalendarEvent::make($this)
-            ->title($this->Title)
+            ->title($title)
             ->start($this->StartDate)
             ->end($this->EndDate ?? $this->StartDate)
             ->allDay($this->AllDay)
+            ->backgroundColor($backgroundColor)
+            ->textColor('#ffffff')
             ->action('edit');
     }
 
@@ -36,6 +46,7 @@ class CalendarAppointment extends Model implements Eventable
             'StartDate' => 'datetime',
             'EndDate' => 'datetime',
             'AllDay' => 'boolean',
+            'NotAvailable' => 'boolean',
             'IsDeleted' => 'boolean',
         ];
     }
